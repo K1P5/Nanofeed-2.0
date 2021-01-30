@@ -1,0 +1,152 @@
+/*
+****NANOFEED****
+MATERIAL AUGER WITH BUILT-ON STORAGE TANK.
+DESIGNED FOR GRANULAR/FLAKE MATERIAL (MAX DIA. ~3-4mm).
+
+KIRILL PSAREV
+1/30/2021
+*/
+
+//Include I2C library.
+#include <Wire.h>
+
+//Include DS3231 RTC library.
+#include <ds3231.h>
+struct ts t;
+
+// Define stepper motor variables and steps per revolution.
+// Define DRV8825 input pin variables.
+const int m0 = 11;  //step setting 1; D11
+const int m1 = 10;  //step setting 2; D10
+const int m2 = 9;  //step setting 3; D9
+const int enable = 7;  //enable pin; D7
+const int sleep  = 5;  //sleep pin; D5
+const int reset = 6;  //reset pin; D6
+const int dirPin = 4;  //direction pin; D4
+const int stepPin = 3;  //step pulse pin; D3
+const int stepsPerRevolution = 200; //steps per revolution of stepper motor 00
+
+//Define misc. variables.
+const int pushbutton00 = 2; //Variable for push button 00 pin; D2
+const int fault = 8; //variable for DRV8825 fault pin; D8 
+const int diode00 = 13; //variable for LED diode; D13
+int button00state;  // variable for reading the pushbutton status
+int faultstate; // variable for reading the pushbutton status
+int currenthours; //variable for current hours elapsed
+
+
+
+void setup() {
+  //begin I2C comm.
+  Serial.begin(9600);
+  Wire.begin();
+  DS3231_init(DS3231_INTCN);
+  
+  // Declare pins as output/input:
+  pinMode(m0, OUTPUT);
+  pinMode(m1, OUTPUT);
+  pinMode(m2, OUTPUT);
+  pinMode(enable, OUTPUT);
+  pinMode(sleep, OUTPUT);
+  pinMode(reset, OUTPUT);
+  pinMode(fault, INPUT);
+  pinMode(stepPin, OUTPUT);
+  pinMode(dirPin, OUTPUT);
+  pinMode(pushbutton00, INPUT);
+  pinMode(diode00, OUTPUT);
+  digitalWrite(diode00, LOW);
+  
+  //Set initial RTC State. Only need hours set for this sketch.
+  t.hour=0;
+  DS3231_set(t);
+}
+void loop() {
+  
+  digitalWrite(reset, HIGH);      //pull reset pin HIGH, turns off reset
+  digitalWrite(enable, LOW);      //pull enable pin LOW, enable DRV8825
+  digitalWrite(sleep, LOW);     //pull sleep pin LOW, DRV8825 in sleep mode
+  
+  digitalWrite(diode00, HIGH);
+  delay(100);
+  digitalWrite(diode00, LOW);
+  delay(100);
+  digitalWrite(diode00, HIGH);
+  delay(100);
+  digitalWrite(diode00, LOW);
+  delay(100);
+  digitalWrite(diode00, HIGH);
+  delay(100);
+  digitalWrite(diode00, LOW);
+  
+  button00state = digitalRead(pushbutton00);     // read the state of the pushbutton value
+  DS3231_get(&t);
+  
+  if (button00state == HIGH) {      // check if the pushbutton is pressed. If it is, the buttonState is HIGH
+
+    digitalWrite(sleep, HIGH);      //pull sleep HIGH, waking DRV8825
+    digitalWrite(dirPin, HIGH);      //Set the spinning direction clockwise
+    
+    // Spin the stepper motor 1 revolution slowly:
+    
+    for (int i = 0; i < 360; i++) {
+      // These four lines result in 1 step:
+      digitalWrite(stepPin, HIGH);
+      delayMicroseconds(800);
+      digitalWrite(stepPin, LOW);
+      delayMicroseconds(800);
+    }
+    
+    digitalWrite(dirPin, LOW);
+    
+    for (int i = 360; i < 475; i++) {
+      digitalWrite(stepPin, HIGH);
+      delayMicroseconds(800);
+      digitalWrite(stepPin, LOW);
+      delayMicroseconds(800);
+    }
+    
+    t.hour=0;
+    DS3231_set(t);
+
+    digitalWrite(sleep, LOW);
+    digitalWrite(stepPin, LOW);
+  }  
+  else if (t.hour >= 12) {
+    
+    digitalWrite(sleep, HIGH);      //pull sleep HIGH, waking DRV8825
+    digitalWrite(dirPin, HIGH);      //Set the spinning direction clockwise
+    
+    // Spin the stepper motor 1 revolution slowly:
+    
+    for (int i = 0; i < 360; i++) {
+      // These four lines result in 1 step:
+      digitalWrite(stepPin, HIGH);
+      delayMicroseconds(800);
+      digitalWrite(stepPin, LOW);
+      delayMicroseconds(800);
+    }
+    
+    digitalWrite(dirPin, LOW);
+    
+    for (int i = 360; i < 475; i++) {
+      digitalWrite(stepPin, HIGH);
+      delayMicroseconds(800);
+      digitalWrite(stepPin, LOW);
+      delayMicroseconds(800);
+    }
+    
+    t.hour=0;
+    DS3231_set(t);
+
+    digitalWrite(sleep, LOW);
+    digitalWrite(stepPin, LOW);    
+  }
+  
+  else {
+    // leave DRV8825 sleeping
+    digitalWrite(stepPin, LOW);
+    digitalWrite(sleep, LOW);
+    delay(1000);
+  }
+
+}
