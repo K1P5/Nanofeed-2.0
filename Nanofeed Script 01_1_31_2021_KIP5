@@ -1,0 +1,164 @@
+/*
+****NANOFEED****
+VERSION 2.1
+MATERIAL AUGER WITH BUILT-ON STORAGE TANK.
+DESIGNED FOR GRANULAR/FLAKE MATERIAL (MAX DIA. ~3-4mm).
+NO RTC CLOCK CAPABILITY JUST YET, STILL WORKING OUT THE ISSUES.
+
+SET DURATION WITH LINE 35; LONG INTERVAL = ___;
+
+UPON APPLICATION OF POWER THE UNIT WILL FEED ONLY UPON REACHING THE
+ASSIGNED INTERVAL TIME, IN MILLISECONDS. PULLING THE BUTTON STATE
+HIGH WILL PERFORM AN IMMEDIATE CYCLE, RESETTING THE COUNTERS TO
+ESTABLISH THE BUTTON PRESS AS THE NEW TIMER INTERVAL ZERO. 
+
+KIRILL PSAREV
+1/31/2021
+*/
+
+// Define stepper motor variables and steps per revolution.
+// Define DRV8825 input pin variables.
+const int m0 = 11;  //step setting 1; D11
+const int m1 = 10;  //step setting 2; D10
+const int m2 = 9;  //step setting 3; D9
+const int enable = 7;  //enable pin; D7
+const int sleep  = 5;  //sleep pin; D5
+const int reset = 6;  //reset pin; D6
+const int dirPin = 4;  //direction pin; D4
+const int stepPin = 3;  //step pulse pin; D3
+const int stepsPerRevolution = 200; //steps per revolution of stepper motor 00
+
+//Define misc. variables.
+const int pushbutton00 = 2; //Variable for push button 00 pin; D2
+const int fault = 8; //variable for DRV8825 fault pin; D8 
+const int diode00 = 13; //variable for LED diode; D13
+int pushbuttonstate;  // variable for reading the pushbutton status
+int faultstate; // variable for reading the pushbutton status
+int currenthours; //variable for current hours elapsed
+
+//Define timer variables
+unsigned long previousMillis;
+long interval = 43200000; //12 hrs == 43200000 ms / 8 hrs == 3600000 ms / etc...  
+
+
+void setup() {
+  
+  // Declare pins as output/input:
+  pinMode(m0, OUTPUT);
+  pinMode(m1, OUTPUT);
+  pinMode(m2, OUTPUT);
+  pinMode(enable, OUTPUT);
+  pinMode(sleep, OUTPUT);
+  pinMode(reset, OUTPUT);
+  pinMode(fault, INPUT);
+  pinMode(stepPin, OUTPUT);
+  pinMode(dirPin, OUTPUT);
+  pinMode(pushbutton00, INPUT_PULLUP);
+  pinMode(diode00, OUTPUT);
+  digitalWrite(diode00, LOW);
+  
+}
+void loop() {
+  
+  digitalWrite(reset, HIGH);      //pull reset pin HIGH, turns off reset
+  digitalWrite(enable, LOW);      //pull enable pin LOW, enable DRV8825
+  digitalWrite(sleep, LOW);     //pull sleep pin LOW, DRV8825 in sleep mode
+
+  digitalWrite(diode00, HIGH);   
+  delay(200);
+  digitalWrite(diode00, LOW);
+//  delay(100);
+//  digitalWrite(diode00, HIGH);
+//  delay(100);
+//  digitalWrite(diode00, LOW);
+//  delay(100);
+//  digitalWrite(diode00, HIGH);
+//  delay(100);
+//  digitalWrite(diode00, LOW);
+
+  unsigned long currentMillis = millis(); //Begin counting milliseconds
+  
+  pushbuttonstate = digitalRead(pushbutton00);  // read the state of the pushbutton value
+  
+  if (pushbuttonstate == HIGH) {  // check if the pushbutton is pressed. If it is, the buttonState is HIGH
+    
+    previousMillis = currentMillis;
+    
+    digitalWrite(diode00, HIGH);  //Display condition to user
+    delay(100);
+    digitalWrite(diode00, LOW);
+    
+    digitalWrite(sleep, HIGH); //pull sleep HIGH, waking DRV8825
+    
+    digitalWrite(dirPin, HIGH); //Set the spinning direction clockwise
+    
+    // Spin stepper motor 1 to feed material forward
+    
+    for (int i = 0; i < 180; i++) {
+      // These four lines result in 1 step:
+      digitalWrite(stepPin, HIGH);
+      delayMicroseconds(450);
+      digitalWrite(stepPin, LOW);
+      delayMicroseconds(450);
+    }
+    
+    digitalWrite(dirPin, LOW);
+    
+    // Spin stepper motor 1 to retract feed material and clean orifice
+    
+    for (int i = 180; i < 300; i++) {
+      digitalWrite(stepPin, HIGH);
+      delayMicroseconds(450);
+      digitalWrite(stepPin, LOW);
+      delayMicroseconds(450);
+    }
+    
+    digitalWrite(sleep, LOW);
+    digitalWrite(stepPin, LOW);
+    
+    unsigned long previousMillis = 0;
+    unsigned long currentMillis = 0;
+    
+  }  
+  else if (currentMillis - previousMillis > interval) {
+
+    previousMillis = currentMillis;
+    
+    digitalWrite(sleep, HIGH);      //pull sleep HIGH, waking DRV8825
+    digitalWrite(dirPin, HIGH);      //Set the spinning direction clockwise
+    
+    // Spin stepper motor 1 to feed material forward
+    
+    for (int i = 0; i < 180; i++) {
+      // These four lines result in 1 step:
+      digitalWrite(stepPin, HIGH);
+      delayMicroseconds(450);
+      digitalWrite(stepPin, LOW);
+      delayMicroseconds(450);
+    }
+    
+    digitalWrite(dirPin, LOW);
+
+    // Spin stepper motor 1 to retract feed material and clean orifice
+    
+    for (int i = 180; i < 300; i++) {
+      digitalWrite(stepPin, HIGH);
+      delayMicroseconds(450);
+      digitalWrite(stepPin, LOW);
+      delayMicroseconds(450);
+    }
+
+    digitalWrite(sleep, LOW);
+    digitalWrite(stepPin, LOW); 
+
+    unsigned long previousMillis = 0;
+    unsigned long currentmillis = 0;   
+  }
+  
+  else {
+    // leave DRV8825 sleeping
+    digitalWrite(sleep, LOW);
+    digitalWrite(stepPin, LOW);
+    delay(800);
+  }
+}
